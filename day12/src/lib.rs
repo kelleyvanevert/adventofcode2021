@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-pub fn solve(s: &str) -> usize {
+fn find_paths(s: &str, allow_double_visit: bool) -> usize {
     let mut adj: HashMap<&str, HashSet<&str>> = HashMap::new();
     let mut is_small = HashMap::new();
 
@@ -25,16 +25,23 @@ pub fn solve(s: &str) -> usize {
 
     let mut completed = 0;
 
-    let mut todo: Vec<(Vec<&str>, &str, usize)> = vec![(vec![], "start", 0)];
+    let mut todo = vec![(HashMap::new(), "start", false)];
 
-    while let Some((visited, at, depth)) = todo.pop() {
+    while let Some((visited, at, has_double_visit)) = todo.pop() {
         for &dest in &adj[at] {
             if dest == "end" {
                 completed += 1;
-            } else if !is_small[dest] || !visited.contains(&dest) {
+            } else if !is_small[dest] || !visited.contains_key(&dest) {
                 let mut visited = visited.clone();
-                visited.push(at);
-                todo.push((visited, dest, depth + 1));
+                visited.insert(at, 1);
+                todo.push((visited, dest, has_double_visit));
+            } else if allow_double_visit
+                && !has_double_visit
+                && (dest != "start" && visited[dest] < 2)
+            {
+                let mut visited = visited.clone();
+                visited.insert(at, 2);
+                todo.push((visited, dest, true));
             }
         }
     }
@@ -42,8 +49,12 @@ pub fn solve(s: &str) -> usize {
     completed
 }
 
+pub fn solve(s: &str) -> usize {
+    find_paths(s, false)
+}
+
 pub fn bonus(s: &str) -> usize {
-    42
+    find_paths(s, true)
 }
 
 #[test]
@@ -58,6 +69,7 @@ b-end
 ";
 
     assert_eq!(solve(s), 10);
+    assert_eq!(bonus(s), 36);
 
     let s = "dc-end
 HN-start
@@ -72,6 +84,7 @@ kj-dc
 ";
 
     assert_eq!(solve(s), 19);
+    assert_eq!(bonus(s), 103);
 
     let s = "fs-end
 he-DX
@@ -93,4 +106,5 @@ pj-fs
 start-RW";
 
     assert_eq!(solve(s), 226);
+    assert_eq!(bonus(s), 3509);
 }
