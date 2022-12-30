@@ -72,8 +72,10 @@ fn parse(s: &str) -> (Polymer, Rules) {
     (template, rules)
 }
 
+// struct Ca
+
 std::thread_local! {
-  static CALC_MEMO: RefCell<HashMap<(char,char,usize),Histo>> = RefCell::new(HashMap::new());
+  static CALC_MEMO: RefCell<HashMap<(char, char, usize), Histo>> = RefCell::new(HashMap::new());
 }
 
 fn calc(le: char, ri: char, steps: usize, rules: &Rules) -> Histo {
@@ -89,7 +91,7 @@ fn calc(le: char, ri: char, steps: usize, rules: &Rules) -> Histo {
     Histo::from([(le, 1)])
 }
 
-/// Basically just copied what `#[memoize]` generates, except omitting the rules
+/// Basically just copied what `#[memoize]` generates, except omitting `rules`. Technically incorrect for that reason, if other `rules` would ever be used.
 fn calc_memoized(le: char, ri: char, steps: usize, rules: &Rules) -> Histo {
     let r = CALC_MEMO.with(|cell| {
         let memo = cell.borrow_mut();
@@ -138,6 +140,10 @@ pub fn solve(s: &str) -> u64 {
 }
 
 pub fn bonus(s: &str) -> u64 {
+    CALC_MEMO.with(|cell| {
+        cell.borrow_mut().clear();
+    });
+
     let (template, rules) = parse(s);
 
     let histo = run(template, rules, 40);
@@ -169,4 +175,7 @@ CN -> C
 
     assert_eq!(solve(s), 1588);
     assert_eq!(bonus(s), 2188189693529);
+
+    let actual = include_str!("../input.txt");
+    assert_eq!(bonus(actual), 2984946368465);
 }
