@@ -69,34 +69,20 @@ fn packet_children<'a>(s: &'a str) -> IResult<&'a str, Vec<Packet>> {
 }
 
 fn children_upto_len<'a>(s: &'a str) -> IResult<&'a str, Vec<Packet>> {
-    let (mut s, bitlen) = map(bits(15), bitvec_to_num)(s)?;
-    let len_at_start = s.len();
-
-    let mut children = vec![];
-
-    while len_at_start - s.len() < bitlen {
-        let res = p_packet(s)?;
-        s = res.0;
-        children.push(res.1);
-    }
-
-    if len_at_start - s.len() > bitlen {
-        panic!("Read too much");
-    }
-
-    Ok((s, children))
+    let (s, bitlen) = map(bits(15), bitvec_to_num)(s)?;
+    let (_, children) = many0(p_packet)(&s[0..bitlen])?;
+    Ok((&s[bitlen..], children))
 }
 
 fn children_upto_amount<'a>(s: &'a str) -> IResult<&'a str, Vec<Packet>> {
-    let (mut s, mut num) = map(bits(11), bitvec_to_num)(s)?;
+    let (mut s, num) = map(bits(11), bitvec_to_num)(s)?;
 
     let mut children = vec![];
 
-    while num > 0 {
-        let res = p_packet(s)?;
-        s = res.0;
-        children.push(res.1);
-        num -= 1;
+    let mut child: Packet;
+    while children.len() < num {
+        (s, child) = p_packet(s)?;
+        children.push(child);
     }
 
     Ok((s, children))
