@@ -1,0 +1,9 @@
+[package]
+name = "day18"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+itertools = "0.10.5"
+nom = "7.1.1"
+util = { path = "../util" }
