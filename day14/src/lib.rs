@@ -72,8 +72,6 @@ fn parse(s: &str) -> (Polymer, Rules) {
     (template, rules)
 }
 
-// struct Ca
-
 std::thread_local! {
   static CALC_MEMO: RefCell<HashMap<(char, char, usize), Histo>> = RefCell::new(HashMap::new());
 }
@@ -113,6 +111,10 @@ fn calc_memoized(le: char, ri: char, steps: usize, rules: &Rules) -> Histo {
 }
 
 fn run(template: Polymer, rules: Rules, steps: usize) -> Histo {
+    CALC_MEMO.with(|cell| {
+        cell.borrow_mut().clear();
+    });
+
     let mut histo = template
         .iter()
         .map(|&(le, ri)| calc_memoized(le, ri, steps, &rules))
@@ -140,10 +142,6 @@ pub fn solve(s: &str) -> u64 {
 }
 
 pub fn bonus(s: &str) -> u64 {
-    CALC_MEMO.with(|cell| {
-        cell.borrow_mut().clear();
-    });
-
     let (template, rules) = parse(s);
 
     let histo = run(template, rules, 40);
@@ -173,9 +171,10 @@ CC -> N
 CN -> C
 ";
 
-    assert_eq!(solve(s), 1588);
-    assert_eq!(bonus(s), 2188189693529);
-
     let actual = include_str!("../input.txt");
+
+    assert_eq!(solve(s), 1588);
+    assert_eq!(solve(actual), 2703);
+    assert_eq!(bonus(s), 2188189693529);
     assert_eq!(bonus(actual), 2984946368465);
 }
