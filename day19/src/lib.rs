@@ -1,12 +1,13 @@
 #![feature(drain_filter)]
 
+use itertools::Itertools;
 use std::collections::{HashMap, HashSet};
 
 type Pos = (i32, i32, i32);
 type Dist = (i32, i32, i32);
 type Scan = HashSet<Pos>;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 fn parse(s: &str) -> Vec<Scan> {
     s.split("\n\n")
@@ -28,33 +29,37 @@ fn parse(s: &str) -> Vec<Scan> {
 type Orient = fn(Pos) -> Pos;
 type Rearrange = fn(Pos) -> Pos;
 
-fn get_orientations() -> Vec<(&'static str, Orient)> {
+fn get_orientations() -> Vec<Orient> {
     vec![
-        ("(x, y, z)", |(x, y, z): Pos| (x, y, z)),
-        ("(x, y, -z)", |(x, y, z): Pos| (x, y, -z)),
-        ("(x, -y, z)", |(x, y, z): Pos| (x, -y, z)),
-        ("(x, -y, -z)", |(x, y, z): Pos| (x, -y, -z)),
-        ("(-x, y, z)", |(x, y, z): Pos| (-x, y, z)),
-        ("(-x, y, -z)", |(x, y, z): Pos| (-x, y, -z)),
-        ("(-x, -y, z)", |(x, y, z): Pos| (-x, -y, z)),
-        ("(-x, -y, -z)", |(x, y, z): Pos| (-x, -y, -z)),
+        |(x, y, z): Pos| (x, y, z),
+        |(x, y, z): Pos| (x, y, -z),
+        |(x, y, z): Pos| (x, -y, z),
+        |(x, y, z): Pos| (x, -y, -z),
+        |(x, y, z): Pos| (-x, y, z),
+        |(x, y, z): Pos| (-x, y, -z),
+        |(x, y, z): Pos| (-x, -y, z),
+        |(x, y, z): Pos| (-x, -y, -z),
     ]
 }
 
-fn get_rearrangements() -> Vec<(&'static str, Rearrange)> {
+fn get_rearrangements() -> Vec<Rearrange> {
     vec![
-        ("(x, y, z)", |(x, y, z): Pos| (x, y, z)),
-        ("(x, z, y)", |(x, y, z): Pos| (x, z, y)),
-        ("(y, x, z)", |(x, y, z): Pos| (y, x, z)),
-        ("(z, x, y)", |(x, y, z): Pos| (z, x, y)),
-        ("(y, z, x)", |(x, y, z): Pos| (y, z, x)),
-        ("(z, y, x)", |(x, y, z): Pos| (z, y, x)),
+        |(x, y, z): Pos| (x, y, z),
+        |(x, y, z): Pos| (x, z, y),
+        |(x, y, z): Pos| (y, x, z),
+        |(x, y, z): Pos| (z, x, y),
+        |(x, y, z): Pos| (y, z, x),
+        |(x, y, z): Pos| (z, y, x),
     ]
 }
 
-fn find_overlap(sa: &Scan, sb: &Scan) -> Option<Scan> {
-    for (name, orient) in get_orientations() {
-        for (aname, rearrange) in get_rearrangements() {
+fn manhattan(((ax, ay, az), (bx, by, bz)): (Pos, Pos)) -> usize {
+    ((ax - bx).abs() + (ay - by).abs() + (az - bz).abs()) as usize
+}
+
+fn find_overlap(sa: &Scan, sb: &Scan) -> Option<(Scan, Pos)> {
+    for orient in get_orientations() {
+        for rearrange in get_rearrangements() {
             let sbt = sb
                 .iter()
                 .cloned()
@@ -78,7 +83,11 @@ fn find_overlap(sa: &Scan, sb: &Scan) -> Option<Scan> {
                             .map(|&v| (v.0 - dist.0, v.1 - dist.1, v.2 - dist.2))
                             .collect::<Scan>();
 
-                        return Some(sb_for_sa_perspective);
+                        // sensor b pos, as according to scan sa
+                        let s0 = orient(rearrange((0, 0, 0)));
+                        let s0 = (s0.0 - dist.0, s0.1 - dist.1, s0.2 - dist.2);
+
+                        return Some((sb_for_sa_perspective, s0));
                     }
                 }
             }
@@ -88,11 +97,12 @@ fn find_overlap(sa: &Scan, sb: &Scan) -> Option<Scan> {
     None
 }
 
-pub fn solve(s: &str) -> usize {
+fn solve_both_parts(s: &str) -> (usize, usize) {
     let mut scans = parse(s).into_iter().enumerate();
     let first = scans.next().unwrap();
 
     let mut done = vec![first];
+    let mut sensors = vec![(0, 0, 0)];
     let mut todo = scans.collect::<Vec<_>>();
 
     while todo.len() > 0 {
@@ -102,27 +112,43 @@ pub fn solve(s: &str) -> usize {
                 .find_map(|(i, sa)| find_overlap(sa, &sb).map(|sat| (i, sat)))
             {
                 None => false,
-                Some((i, transformed_back)) => {
+                Some((i, (transformed_back, s0_back))) => {
                     if DEBUG {
                         println!("Located scan {j} relative to {i}");
+                        println!();
                     }
 
                     done.push((*j, transformed_back));
+                    sensors.push(s0_back);
                     true
                 }
             }
         });
     }
 
-    done.into_iter()
+    let num_beacons = done
+        .into_iter()
         .map(|p| p.1)
         .reduce(|sa, sb| sa.union(&sb).cloned().collect::<Scan>())
         .unwrap()
-        .len()
+        .len();
+
+    let max_dist = sensors
+        .into_iter()
+        .tuple_combinations()
+        .map(manhattan)
+        .max()
+        .unwrap();
+
+    (num_beacons, max_dist)
+}
+
+pub fn solve(s: &str) -> usize {
+    solve_both_parts(s).0
 }
 
 pub fn bonus(s: &str) -> usize {
-    42
+    solve_both_parts(s).1
 }
 
 #[test]
@@ -266,4 +292,5 @@ fn test_solve() {
 ";
 
     assert_eq!(solve(s), 79);
+    assert_eq!(bonus(s), 3621);
 }
