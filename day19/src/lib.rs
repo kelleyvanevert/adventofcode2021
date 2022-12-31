@@ -1,6 +1,7 @@
 #![feature(drain_filter)]
 
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 type Pos = (i32, i32, i32);
@@ -97,7 +98,7 @@ fn find_overlap(sa: &Scan, sb: &Scan) -> Option<(Scan, Pos)> {
     None
 }
 
-fn solve_both_parts(s: &str) -> (usize, usize) {
+pub fn solve_both_parts(s: &str) -> (usize, usize) {
     let mut scans = parse(s).into_iter().enumerate();
     let first = scans.next().unwrap();
 
@@ -108,8 +109,8 @@ fn solve_both_parts(s: &str) -> (usize, usize) {
     while todo.len() > 0 {
         todo.drain_filter(|(j, sb)| {
             match done
-                .iter()
-                .find_map(|(i, sa)| find_overlap(sa, &sb).map(|sat| (i, sat)))
+                .par_iter()
+                .find_map_any(|(i, sa)| find_overlap(sa, &sb).map(|sat| (i, sat)))
             {
                 None => false,
                 Some((i, (transformed_back, s0_back))) => {

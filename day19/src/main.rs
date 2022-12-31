@@ -5,7 +5,8 @@ fn main() {
     let s = include_str!("../input.txt");
 
     time(|| {
-        println!("Solution: {}", solve(s));
-        println!("Bonus: {}", bonus(s));
+        let (solution, bonus) = solve_both_parts(s);
+        println!("Solution: {solution}");
+        println!("Bonus: {bonus}");
     });
 }
